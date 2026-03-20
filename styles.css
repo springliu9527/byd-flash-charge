@@ -78,7 +78,8 @@ body {
 @media (min-width: 880px) {
   .grid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(280px, 1.05fr);
-    grid-template-rows: minmax(0, 1fr) auto;
+    /* 关键：上半区按内容高度，避免统计/柜体区被拉伸出大片空白 */
+    grid-template-rows: auto 1fr;
     column-gap: 0.5rem;
     row-gap: 0.4rem;
   }

@@ -110,7 +110,8 @@ body {
     min-height: 0;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    /* 防止右侧内容（如进度条）被裁切导致“看起来一大块空白” */
+    overflow: auto;
   }
 
   .charge-panel .vehicle-note,
@@ -177,6 +178,11 @@ body {
   border-radius: 8px;
   padding: 0.35rem 0.35rem 0.45rem;
   background: #0e141c;
+  /* 让卡片内容自适应填满高度，减少中间大空白 */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
 }
 
 .stall-title {
@@ -197,7 +203,7 @@ body {
 .stall-ring.soc-ring-wrap {
   width: 76px;
   height: 76px;
-  margin: 0 auto 0.25rem;
+  margin: 0 auto 0.15rem;
 }
 
 .stall-power .power-val.small {
@@ -205,12 +211,12 @@ body {
 }
 
 .stall-power {
-  margin-bottom: 0.25rem;
+  margin-bottom: 0;
 }
 
 .stall-metrics {
   font-size: 0.62rem;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.15rem;
 }
 
 .panel {
@@ -530,7 +536,7 @@ select:disabled {
 
 .power-block {
   text-align: center;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.25rem;
 }
 
 .power-block .label {
@@ -556,7 +562,7 @@ select:disabled {
   gap: 0.2rem;
   font-size: 0.8rem;
   text-align: center;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.15rem;
 }
 
 .m-label {
@@ -566,11 +572,11 @@ select:disabled {
 }
 
 .session-track {
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.1rem;
 }
 
 .session-progress-label {
-  margin: 0 0 0.1rem;
+  margin: 0 0 0.05rem;
   font-size: 0.65rem;
   color: var(--muted);
 }

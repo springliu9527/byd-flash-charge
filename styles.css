@@ -1,0 +1,460 @@
+/* 闪充演示 — 暗色 HMI */
+
+:root {
+  --bg: #0a0e14;
+  --panel: #121a24;
+  --border: #1e2a3a;
+  --text: #e8eef7;
+  --muted: #8a9bb0;
+  --accent: #2ee6a6;
+  --accent-dim: #1a8f63;
+  --warn: #f5b84a;
+  --danger: #e85d5d;
+  --ring: 326.7256;
+  font-family: "SF Pro Display", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(ellipse 120% 80% at 50% -20%, #152030 0%, var(--bg) 45%);
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+  /* 数字等宽，减少刷新时版面微颤 */
+  font-variant-numeric: tabular-nums;
+}
+
+.hero h1 {
+  font-size: clamp(1.35rem, 4vw, 1.75rem);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  margin: 0 0 0.35rem;
+}
+
+.tagline {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+@media (min-width: 720px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .charge-panel {
+    grid-column: 1 / -1;
+  }
+}
+
+.total-power-line {
+  margin: 0 0 0.75rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.total-power-line strong {
+  color: #93c5fd;
+}
+
+.total-power-line .mw-sub {
+  font-size: 0.82em;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.stall-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 560px) {
+  .stall-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stall-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.65rem 0.5rem;
+  background: #0e141c;
+}
+
+.stall-title {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.stall-badge {
+  margin: 0.2rem 0 0.35rem;
+  font-size: 0.78rem;
+  color: var(--warn);
+}
+
+.stall-ring.soc-ring-wrap {
+  width: 110px;
+  height: 110px;
+  margin-bottom: 0.5rem;
+}
+
+.stall-power .power-val.small {
+  font-size: 1.35rem;
+}
+
+.stall-metrics {
+  font-size: 0.72rem;
+  margin-bottom: 0.5rem;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+}
+
+.panel h2 {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.panel-desc {
+  margin: -0.35rem 0 0.65rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.spec-line {
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+  color: var(--text);
+  opacity: 0.92;
+}
+
+.cabinet-meters {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+}
+
+.big-stat .label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.big-stat .value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.big-stat small {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.progress-track {
+  height: 10px;
+  background: #0d131c;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  /* 仿真每帧更新宽度：若加 transition 会与 rAF 打架，整页会像在跳 */
+  transition: none;
+}
+
+.cabinet-fill {
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+}
+
+.session-fill {
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.status-line {
+  margin: 0.5rem 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--warn);
+}
+
+.field-grid {
+  display: grid;
+  gap: 0.65rem;
+}
+
+@media (min-width: 480px) {
+  .field-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .field-grid .full {
+    grid-column: 1 / -1;
+  }
+}
+
+label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+input,
+select {
+  font: inherit;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #0d131c;
+  color: var(--text);
+}
+
+input:disabled,
+select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.main-actions {
+  margin-top: 1rem;
+}
+
+.btn {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: #1a2434;
+  color: var(--text);
+  padding: 0.5rem 0.85rem;
+  border-radius: 8px;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background: linear-gradient(180deg, #2a9d6f, var(--accent-dim));
+  border-color: var(--accent-dim);
+  color: #041208;
+  font-weight: 650;
+}
+
+.btn.secondary {
+  background: #1e2d42;
+}
+
+.btn.danger.ghost {
+  margin-top: 0.5rem;
+  color: var(--danger);
+  border-color: #5c2a2a;
+  background: transparent;
+  width: 100%;
+}
+
+.stats-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem;
+  font-size: 0.92rem;
+}
+
+.stats-list li {
+  padding: 0.25rem 0;
+}
+
+.toggle-row {
+  margin: 0.5rem 0;
+}
+
+.toggle {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.toggle input {
+  width: auto;
+}
+
+.speed-row {
+  margin-top: 0.25rem;
+}
+
+.stats-panel .ops-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.76rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: var(--warn);
+  margin: 0.5rem 0 0;
+}
+
+.vehicle-note {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0 0 0.75rem;
+}
+
+.soc-ring-wrap {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 1rem;
+}
+
+.soc-ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ring-bg {
+  fill: none;
+  stroke: #1e2a3a;
+  stroke-width: 10;
+}
+
+.ring-fg {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 10;
+  stroke-linecap: round;
+  stroke-dasharray: var(--ring);
+  stroke-dashoffset: var(--ring);
+  transition: none;
+}
+
+.soc-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.soc-pct {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.soc-sub {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.power-block {
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+.power-block .label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.power-val {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #93c5fd;
+}
+
+.power-val small {
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+.m-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.session-track {
+  margin-bottom: 0.35rem;
+}
+
+.session-progress-label {
+  margin: 0 0 0.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.5;
+}

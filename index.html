@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>比亚迪闪充演示 — 第二代刀片电池 · 双枪与储能柜</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <h1>比亚迪闪充 · 第二代刀片电池</h1>
+      <p class="tagline">兆瓦级双枪并行补能；两车同时接受大直流，车位一空自动接下一台，直至站端储电柜可放电量耗尽（演示模型）</p>
+    </header>
+
+    <main class="grid">
+      <section class="panel cabinet-panel" aria-label="储电柜状态">
+        <h2>站端储电柜</h2>
+        <div class="cabinet-meters">
+          <div class="big-stat">
+            <span class="label">剩余电量</span>
+            <span class="value"><span id="cabinetRemaining">—</span> <small>kWh</small></span>
+          </div>
+          <div class="big-stat">
+            <span class="label">剩余比例</span>
+            <span class="value"><span id="cabinetPercent">—</span> <small>%</small></span>
+          </div>
+        </div>
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="储电柜剩余能量">
+          <div class="progress-fill cabinet-fill" id="cabinetBar"></div>
+        </div>
+        <p class="status-line" id="cabinetStatus">待命</p>
+        <div class="field-grid">
+          <label>额定可放电量（常见档位）
+            <select id="cabinetRated" aria-label="储电柜额定可放电量">
+              <option value="100">100 kWh · 小型工商业 / 演示</option>
+              <option value="215">215 kWh · 常见柜体规格</option>
+              <option value="233">233 kWh · 常见柜体规格</option>
+              <option value="372">372 kWh · 常见柜体规格</option>
+              <option value="500" selected>500 kWh · 站级 / 大流量演示</option>
+              <option value="1000">1000 kWh · 1 MWh 级</option>
+              <option value="2150">2150 kWh · 大型储能站（演示）</option>
+            </select>
+          </label>
+          <label>输出效率 η（整站至车端折算）
+            <select id="cabinetEta" aria-label="储电柜输出效率">
+              <option value="1" selected>100% · 理想（无损耗演示）</option>
+              <option value="0.95">95% · 较优系统</option>
+              <option value="0.92">92% · 常见 PCS+配电</option>
+              <option value="0.9">90% · 保守估算</option>
+              <option value="0.88">88% · 偏保守</option>
+            </select>
+          </label>
+          <label class="full">比亚迪闪充桩 · 整站双枪直流上限（两车合计）
+            <select id="stationMaxKw" aria-label="比亚迪闪充整站双枪直流功率上限">
+              <option value="480">0.48 MW（480 kW）</option>
+              <option value="600">0.60 MW（600 kW）</option>
+              <option value="800">0.80 MW（800 kW）</option>
+              <option value="1000" selected>1.00 MW（1000 kW）· 兆瓦闪充常见演示档</option>
+              <option value="1200">1.20 MW（1200 kW）</option>
+              <option value="1500">1.50 MW（1500 kW）· 与单枪标称峰值同量级</option>
+              <option value="2000">2.00 MW（2000 kW）· 高于常见「整站」报道，纯演示</option>
+              <option value="2100">2.10 MW（2100 kW）· 媒体报道「整站最高」口径（双枪动态分配）</option>
+            </select>
+          </label>
+        </div>
+        <div class="row-actions">
+          <button type="button" class="btn secondary" id="btnCabinetFull">储电柜满仓</button>
+        </div>
+      </section>
+
+      <section class="panel stats-panel" aria-label="累计统计">
+        <h2>本场统计</h2>
+        <ul class="stats-list">
+          <li>已完成车辆：<strong id="completedCount">0</strong> 台</li>
+          <li>累计向车输出：<strong id="totalDelivered">0.00</strong> kWh</li>
+          <li>车位 A 本台输出：<strong id="sessionDeliveredA">0.00</strong> kWh</li>
+          <li>车位 B 本台输出：<strong id="sessionDeliveredB">0.00</strong> kWh</li>
+          <li>两车本台合计：<strong id="sessionDeliveredSum">0.00</strong> kWh</li>
+        </ul>
+        <div class="toggle-row">
+          <label class="toggle">
+            <input type="checkbox" id="autoChain" checked />
+            <span>车位一空自动接下一台（柜未空、按上方车型与起止 SOC）</span>
+          </label>
+        </div>
+        <div class="field-grid speed-row">
+          <label>时间倍速（相对真实时间）
+            <select id="speed">
+              <option value="1">1×</option>
+              <option value="2">2×</option>
+              <option value="4">4×</option>
+              <option value="8">8×</option>
+              <option value="20">20×</option>
+              <option value="50" selected>50×（默认）</option>
+              <option value="100">100×</option>
+            </select>
+          </label>
+          <label>换车间隔（模拟秒）
+            <select id="turnaroundSimSec" aria-label="拔枪离站进站插枪等综合间隔">
+              <option value="0">0 · 不计（演示连续充）</option>
+              <option value="90">90 · 约 1.5 分钟</option>
+              <option value="180" selected>180 · 约 3 分钟</option>
+              <option value="300">300 · 约 5 分钟</option>
+              <option value="480">480 · 约 8 分钟</option>
+              <option value="600">600 · 约 10 分钟</option>
+            </select>
+          </label>
+          <label class="full">双枪开局 · B 车位滞后（模拟秒）
+            <select id="stallBLagSimSec" aria-label="B 车位晚于 A 开始充电">
+              <option value="0" selected>0 · 两车同时就绪</option>
+              <option value="45">45 · 后插枪 / 后入位</option>
+              <option value="90">90</option>
+              <option value="180">180 · 后车入位</option>
+            </select>
+          </label>
+        </div>
+        <p class="panel-desc ops-hint">换车间隔与 B 滞后均按<strong>模拟时间</strong>计，随倍速加快流逝；含拔枪、驶离、进站、插枪、握手等<strong>合并近似</strong>，非分项实测。自动接下一台会等待间隔；点「启动空闲车位」则跳过该车位等待。</p>
+        <button type="button" class="btn danger ghost" id="btnClearStats">清空统计</button>
+      </section>
+
+      <section class="panel vehicle-panel" aria-label="车型与电池">
+        <h2>第二代刀片电池车型</h2>
+        <p class="panel-desc">本页以<strong>比亚迪闪充</strong>为场景：比亚迪车型按<strong>兆瓦闪充演示口径</strong>设较高的车端峰值直流（便于双枪合计逼近所选 MW 桩上限）；宣传中「约 5 分钟补一大段、约 9 分钟更满」等属于品牌理想工况表述，本页用简化曲线近似，<strong>不等于实测或官方承诺</strong>。下方其他品牌仍为常见快充标称作对照。储电柜余量不足时，界面上的「实际功率」会被柜体可放电能力压低——那是站端约束，不是桩标称消失。</p>
+        <div class="field-grid">
+          <label class="full">选择车型
+            <select id="vehicleModel" aria-label="选择车型">
+              <optgroup label="第二代刀片电池（比亚迪纯电 · 兆瓦闪充演示口径）">
+                <option value="byd-han-ev" selected>汉 EV · 闪充演示 · 约 85.4 kWh · 车端峰值直流约 520 kW</option>
+                <option value="byd-seal">海豹 · 闪充演示 · 约 82.5 kWh · 车端峰值直流约 500 kW</option>
+                <option value="byd-qin-plus-ev">秦 PLUS EV · 闪充演示 · 约 57.6 kWh · 车端峰值直流约 380 kW</option>
+                <option value="byd-dolphin">海豚 · 闪充演示 · 约 44.9 kWh · 车端峰值直流约 320 kW</option>
+              </optgroup>
+              <optgroup label="其他品牌（对照）">
+                <option value="tesla-model-y">特斯拉 Model Y（长续航）· 约 78.4 kWh · 峰值直流约 250 kW</option>
+                <option value="tesla-model-3">特斯拉 Model 3（长续航）· 约 75 kWh · 峰值直流约 250 kW</option>
+                <option value="nio-et5">蔚来 ET5 / ET5T · 约 75 kWh · 峰值直流约 180 kW</option>
+                <option value="xpeng-g6">小鹏 G6（755 超长续航）· 约 87.5 kWh · 峰值直流约 280 kW</option>
+                <option value="zeekr-001">极氪 001（100 kWh）· 约 100 kWh · 峰值直流约 200 kW</option>
+                <option value="xiaomi-su7">小米 SU7（后驱长续航）· 约 73.6 kWh · 峰值直流约 220 kW</option>
+                <option value="aion-y-plus">埃安 AION Y Plus · 约 63.98 kWh · 峰值直流约 120 kW</option>
+                <option value="vw-id4-crozz">大众 ID.4 CROZZ（长续航）· 约 84.8 kWh · 峰值直流约 135 kW</option>
+              </optgroup>
+            </select>
+          </label>
+          <label>每台起始 SOC (%)
+            <input type="number" id="socStartInput" min="0" max="99" step="1" value="20" />
+          </label>
+          <label>每台目标 SOC (%)
+            <input type="number" id="socTargetInput" min="1" max="100" step="1" value="100" />
+          </label>
+        </div>
+        <p class="spec-line" id="vehicleSpecLine">当前车型标称：—</p>
+        <p class="hint" id="effectiveTargetHint">—</p>
+      </section>
+
+      <section class="panel charge-panel" aria-label="比亚迪闪充双枪">
+        <h2>比亚迪闪充 · 双枪</h2>
+        <p class="vehicle-note" id="vehicleNoteDisplay">—</p>
+        <p class="total-power-line">闪充双枪合计功率（本帧实际）：<strong id="totalPowerDisplay">0 kW</strong> <span class="mw-sub" id="totalPowerMw"></span>（先按车端峰值 × SOC 曲线，再压到所选 MW 桩上限，最后随储电柜余量可能再降）</p>
+        <div class="stall-grid">
+          <article class="stall-card" aria-label="车位 A">
+            <h3 class="stall-title">车位 A</h3>
+            <p class="stall-badge" id="stall0Badge">空闲</p>
+            <div class="soc-ring-wrap stall-ring">
+              <svg class="soc-ring" viewBox="0 0 120 120" aria-hidden="true">
+                <circle class="ring-bg" cx="60" cy="60" r="52" />
+                <circle class="ring-fg" id="stall0SocRing" cx="60" cy="60" r="52" />
+              </svg>
+              <div class="soc-center">
+                <span class="soc-pct" id="stall0SocDisplay">—</span>
+                <span class="soc-sub">%</span>
+              </div>
+            </div>
+            <div class="power-block stall-power">
+              <span class="label">功率</span>
+              <span class="power-val small" id="stall0PowerDisplay">0 kW</span>
+            </div>
+            <div class="metrics stall-metrics">
+              <div><span class="m-label">电压</span> <span id="stall0VoltDisplay">—</span> V</div>
+              <div><span class="m-label">电流</span> <span id="stall0AmpDisplay">—</span> A</div>
+              <div><span class="m-label">预计剩余</span> <span id="stall0EtaDisplay">—</span></div>
+            </div>
+            <div class="progress-track session-track">
+              <div class="progress-fill session-fill" id="stall0SessionBar"></div>
+            </div>
+            <p class="session-progress-label">本车位进度：<span id="stall0SessionProgressPct">0</span>%</p>
+          </article>
+          <article class="stall-card" aria-label="车位 B">
+            <h3 class="stall-title">车位 B</h3>
+            <p class="stall-badge" id="stall1Badge">空闲</p>
+            <div class="soc-ring-wrap stall-ring">
+              <svg class="soc-ring" viewBox="0 0 120 120" aria-hidden="true">
+                <circle class="ring-bg" cx="60" cy="60" r="52" />
+                <circle class="ring-fg" id="stall1SocRing" cx="60" cy="60" r="52" />
+              </svg>
+              <div class="soc-center">
+                <span class="soc-pct" id="stall1SocDisplay">—</span>
+                <span class="soc-sub">%</span>
+              </div>
+            </div>
+            <div class="power-block stall-power">
+              <span class="label">功率</span>
+              <span class="power-val small" id="stall1PowerDisplay">0 kW</span>
+            </div>
+            <div class="metrics stall-metrics">
+              <div><span class="m-label">电压</span> <span id="stall1VoltDisplay">—</span> V</div>
+              <div><span class="m-label">电流</span> <span id="stall1AmpDisplay">—</span> A</div>
+              <div><span class="m-label">预计剩余</span> <span id="stall1EtaDisplay">—</span></div>
+            </div>
+            <div class="progress-track session-track">
+              <div class="progress-fill session-fill" id="stall1SessionBar"></div>
+            </div>
+            <p class="session-progress-label">本车位进度：<span id="stall1SessionProgressPct">0</span>%</p>
+          </article>
+        </div>
+        <div class="row-actions main-actions">
+          <button type="button" class="btn primary" id="btnStart">开始闪充（双枪）</button>
+          <button type="button" class="btn" id="btnPause" disabled>暂停</button>
+          <button type="button" class="btn secondary" id="btnNext" disabled>启动空闲车位</button>
+        </div>
+        <div class="row-actions">
+          <button type="button" class="btn secondary" id="btnAbortSession">两车回滚本批</button>
+          <button type="button" class="btn secondary" id="btnResetAll">全部重来</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>仅供学习演示，非比亚迪官方页面；「比亚迪闪充」「第二代刀片电池」等用语仅作技术场景说明。车型与桩端参数为公开信息归纳，充电曲线与能量结算为简化模型，不代表实车、实桩或官方标称性能。</p>
+    </footer>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

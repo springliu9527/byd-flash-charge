@@ -33,6 +33,7 @@
     cabinetRated: document.getElementById('cabinetRated'),
     cabinetEta: document.getElementById('cabinetEta'),
     gridChargeKw: document.getElementById('gridChargeKw'),
+    drainToEmpty: document.getElementById('drainToEmpty'),
     stationMaxKw: document.getElementById('stationMaxKw'),
     completedCount: document.getElementById('completedCount'),
     totalDelivered: document.getElementById('totalDelivered'),
@@ -126,6 +127,8 @@
       stationMaxKw: Math.max(100, el.stationMaxKw ? readNumber(el.stationMaxKw, 1000) : 1000),
       /** 自动补能功率档位（kW，演示）；0 表示关闭自动补能、仅放电模型 */
       gridChargeKw: Math.max(0, el.gridChargeKw ? readNumber(el.gridChargeKw, 0) : 0),
+      /** 榨干模式：仿真中不再把电网补能计入柜体（保证柜体可被放电耗尽） */
+      drainToEmpty: !!(el.drainToEmpty && el.drainToEmpty.checked),
       turnaroundSimSec: Math.max(0, parseInt(el.turnaroundSimSec?.value ?? '0', 10) || 0),
       stallBLagSimSec: Math.max(0, parseInt(el.stallBLagSimSec?.value ?? '0', 10) || 0),
     };
@@ -134,6 +137,7 @@
   /** 无车充/无换车间隔等待时仍推进仿真，直至补满（演示） */
   function shouldRunGridRefill() {
     const c = readConfig();
+    if (c.drainToEmpty) return false;
     return c.gridChargeKw > EPS && cabinetRemainingKwh < c.rated - EPS;
   }
 
@@ -321,7 +325,8 @@
     const dt = clamp(dtRaw, 0, dtMaxSimSec);
 
     processStallCooldowns(dt);
-    const gridKIn = (c.gridChargeKw * dt) / 3600;
+    /* 榨干模式下不再计入电网补能，保证柜体可被放电耗尽到 0 */
+    const gridKIn = c.drainToEmpty ? 0 : (c.gridChargeKw * dt) / 3600;
 
     /* 无充电无换车间隔：仅自动补能，补满或功率为 0 则停表 */
     if (!anyActive() && !anyCooldownPending()) {
@@ -561,7 +566,12 @@
     const formOk = cfg.socStart < cfg.socTarget;
 
     const canGridOnly =
-      cabinetEmpty && cfg.gridChargeKw > EPS && !anyActive() && !anyCooldownPending() && formOk;
+      cabinetEmpty &&
+      cfg.gridChargeKw > EPS &&
+      !cfg.drainToEmpty &&
+      !anyActive() &&
+      !anyCooldownPending() &&
+      formOk;
     el.btnStart.disabled =
       anyActive() || anyCooldownPending() || (!canGridOnly && cabinetEmpty) || !formOk;
     el.btnPause.disabled = !anyActive();
@@ -576,6 +586,7 @@
 
     if (
       cfg.gridChargeKw > EPS &&
+      !cfg.drainToEmpty &&
       cabinetRemainingKwh < cfg.rated - EPS &&
       !anyActive() &&
       !anyCooldownPending() &&
@@ -611,7 +622,7 @@
     }
     const cfg = readConfig();
     /* 柜空且开启自动补能：先只跑补能循环，待有余量后再点开始闪充 */
-    if (cabinetRemainingKwh <= EPS && cfg.gridChargeKw > EPS) {
+    if (cabinetRemainingKwh <= EPS && cfg.gridChargeKw > EPS && !cfg.drainToEmpty) {
       paused = false;
       lastNow = performance.now();
       stopLoop();

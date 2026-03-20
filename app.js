@@ -487,8 +487,9 @@
     el.cabinetBar.parentElement.setAttribute('aria-valuenow', String(Math.round(pct)));
 
     if (el.cabinetDrainTimeDisplay) {
-      el.cabinetDrainTimeDisplay.textContent =
-        cabinetDrainTimeSec == null ? '—' : formatEta(cabinetDrainTimeSec);
+      const simRunning = rafId != null;
+      const showSec = cabinetDrainTimeSec == null ? (simRunning ? sessionSimElapsedSec : null) : cabinetDrainTimeSec;
+      el.cabinetDrainTimeDisplay.textContent = showSec == null ? '—' : formatEta(showSec);
     }
 
     el.completedCount.textContent = String(completedCount);

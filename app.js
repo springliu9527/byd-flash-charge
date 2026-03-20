@@ -8,6 +8,9 @@
 
   const RING_C = 2 * Math.PI * 52;
   const EPS = 1e-4;
+  // 为了“柜里还有能量就继续冲”，避免因 SOC 增量阈值过大而提前停枪
+  const SOC_START_MIN_DELTA_PCT = 0.005;
+  const SOC_DONE_TOL_PCT = 0.005;
 
   const VEHICLE_PRESETS = {
     // 车端峰值 kW：按「兆瓦闪充 + 第二代刀片」演示口径调高（双枪易顶满 1MW 桩）；非实测数据
@@ -115,6 +118,8 @@
   function readConfig() {
     const v = getVehiclePreset();
     const drainToEmpty = !!(el.drainToEmpty && el.drainToEmpty.checked);
+    const gridChargeKw = Math.max(0, el.gridChargeKw ? readNumber(el.gridChargeKw, 0) : 0);
+    const continuousNoGap = !drainToEmpty && gridChargeKw > EPS;
     return {
       rated: Math.max(1, readNumber(el.cabinetRated, 500)),
       eta: clamp(readNumber(el.cabinetEta, 1), 0.5, 1),
@@ -127,12 +132,12 @@
       autoChain: el.autoChain.checked,
       stationMaxKw: Math.max(100, el.stationMaxKw ? readNumber(el.stationMaxKw, 1000) : 1000),
       /** 自动补能功率档位（kW，演示）；0 表示关闭自动补能、仅放电模型 */
-      gridChargeKw: Math.max(0, el.gridChargeKw ? readNumber(el.gridChargeKw, 0) : 0),
+      gridChargeKw,
       /** 榨干模式：仿真中不再把电网补能计入柜体（保证柜体可被放电耗尽） */
       drainToEmpty,
-      /* 榨干模式下把换车等待也压到 0：让枪位持续输出，直到柜体耗尽 */
-      turnaroundSimSec: drainToEmpty ? 0 : Math.max(0, parseInt(el.turnaroundSimSec?.value ?? '0', 10) || 0),
-      stallBLagSimSec: drainToEmpty ? 0 : Math.max(0, parseInt(el.stallBLagSimSec?.value ?? '0', 10) || 0),
+      /* 自动补能开启时忽略间隔，保证只要柜里还有能量就持续输出 */
+      turnaroundSimSec: drainToEmpty ? 0 : (continuousNoGap ? 0 : Math.max(0, parseInt(el.turnaroundSimSec?.value ?? '0', 10) || 0)),
+      stallBLagSimSec: drainToEmpty ? 0 : (continuousNoGap ? 0 : Math.max(0, parseInt(el.stallBLagSimSec?.value ?? '0', 10) || 0)),
     };
   }
 
@@ -251,7 +256,7 @@
     let eff = computeEffectiveTarget(st.soc, c.socTarget, c.cap, cabinetRemainingKwh, c.eta);
     eff = clamp(eff, st.soc, c.socTarget);
     st.effectiveSocTarget = eff;
-    if (eff - st.soc < 0.02) return false;
+    if (eff - st.soc < SOC_START_MIN_DELTA_PCT) return false;
     st.cooldownRemainSim = 0;
     st.active = true;
     return true;
@@ -443,7 +448,7 @@
     for (let i = 0; i < 2; i++) {
       const s = stalls[i];
       if (!s.active) continue;
-      if (s.soc >= s.effectiveSocTarget - 0.03) {
+      if (s.soc >= s.effectiveSocTarget - SOC_DONE_TOL_PCT) {
         s.soc = s.effectiveSocTarget;
         s.lastPowerKw = 0;
         doneIdx.push(i);

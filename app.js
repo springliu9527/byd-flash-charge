@@ -114,6 +114,7 @@
 
   function readConfig() {
     const v = getVehiclePreset();
+    const drainToEmpty = !!(el.drainToEmpty && el.drainToEmpty.checked);
     return {
       rated: Math.max(1, readNumber(el.cabinetRated, 500)),
       eta: clamp(readNumber(el.cabinetEta, 1), 0.5, 1),
@@ -128,9 +129,10 @@
       /** 自动补能功率档位（kW，演示）；0 表示关闭自动补能、仅放电模型 */
       gridChargeKw: Math.max(0, el.gridChargeKw ? readNumber(el.gridChargeKw, 0) : 0),
       /** 榨干模式：仿真中不再把电网补能计入柜体（保证柜体可被放电耗尽） */
-      drainToEmpty: !!(el.drainToEmpty && el.drainToEmpty.checked),
-      turnaroundSimSec: Math.max(0, parseInt(el.turnaroundSimSec?.value ?? '0', 10) || 0),
-      stallBLagSimSec: Math.max(0, parseInt(el.stallBLagSimSec?.value ?? '0', 10) || 0),
+      drainToEmpty,
+      /* 榨干模式下把换车等待也压到 0：让枪位持续输出，直到柜体耗尽 */
+      turnaroundSimSec: drainToEmpty ? 0 : Math.max(0, parseInt(el.turnaroundSimSec?.value ?? '0', 10) || 0),
+      stallBLagSimSec: drainToEmpty ? 0 : Math.max(0, parseInt(el.stallBLagSimSec?.value ?? '0', 10) || 0),
     };
   }
 

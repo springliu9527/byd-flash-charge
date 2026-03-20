@@ -30,6 +30,7 @@
           <div class="progress-fill cabinet-fill" id="cabinetBar"></div>
         </div>
         <p class="status-line" id="cabinetStatus">待命</p>
+        <p class="time-line">开始到耗干用时：<strong id="cabinetDrainTimeDisplay">—</strong><span class="muted-sub">（模拟）</span></p>
         <div class="field-grid">
           <label>额定可放电量（常见档位）
             <select id="cabinetRated" aria-label="储电柜额定可放电量">
@@ -106,8 +107,11 @@
             <select id="speed">
               <option value="20">20×</option>
               <option value="50">50×</option>
-              <option value="100" selected>100×（默认）</option>
+              <option value="100">100×</option>
               <option value="200">200×</option>
+              <option value="300" selected>300×（默认）</option>
+              <option value="400">400×</option>
+              <option value="500">500×</option>
             </select>
           </label>
           <label>换车间隔（模拟秒）

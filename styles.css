@@ -313,6 +313,22 @@ body {
   color: var(--warn);
 }
 
+.time-line {
+  margin: -0.05rem 0 0.35rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.time-line strong {
+  color: #93c5fd;
+}
+
+.muted-sub {
+  margin-left: 0.25rem;
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
 .field-grid {
   display: grid;
   gap: 0.4rem;

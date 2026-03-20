@@ -33,6 +33,7 @@
     cabinetPercent: document.getElementById('cabinetPercent'),
     cabinetBar: document.getElementById('cabinetBar'),
     cabinetStatus: document.getElementById('cabinetStatus'),
+    cabinetDrainTimeDisplay: document.getElementById('cabinetDrainTimeDisplay'),
     cabinetRated: document.getElementById('cabinetRated'),
     cabinetEta: document.getElementById('cabinetEta'),
     gridChargeKw: document.getElementById('gridChargeKw'),
@@ -99,6 +100,8 @@
   let paused = false;
   let completedCount = 0;
   let totalDeliveredKwh = 0;
+  let sessionSimElapsedSec = 0;
+  let cabinetDrainTimeSec = null;
 
   /** 功率/电压/电流/合计功率：按墙钟节流（倍速只加速仿真，不加速人眼看数字） */
   const POWER_UI_WALL_MS = 420;
@@ -331,6 +334,7 @@
     const dtMaxSimSec = Math.min(120, 0.2 * c.speed + 0.4);
     const dt = clamp(dtRaw, 0, dtMaxSimSec);
 
+    sessionSimElapsedSec += dt;
     processStallCooldowns(dt);
     /* 榨干模式下不再计入电网补能，保证柜体可被放电耗尽到 0 */
     const gridKIn = c.drainToEmpty ? 0 : (c.gridChargeKw * dt) / 3600;
@@ -365,6 +369,7 @@
     const sMid = clamp(cabinetRemainingKwh + gridKIn, 0, c.rated);
     if (sMid <= EPS) {
       cabinetRemainingKwh = 0;
+      if (cabinetDrainTimeSec == null) cabinetDrainTimeSec = sessionSimElapsedSec;
       for (let i = 0; i < 2; i++) {
         if (stalls[i].active) completeStall(i, 'cabinet');
       }
@@ -458,6 +463,7 @@
 
     if (cabinetRemainingKwh <= EPS) {
       cabinetRemainingKwh = 0;
+      if (cabinetDrainTimeSec == null) cabinetDrainTimeSec = sessionSimElapsedSec;
       for (let i = 0; i < 2; i++) {
         if (stalls[i].active) completeStall(i, 'cabinet');
       }
@@ -479,6 +485,11 @@
     el.cabinetPercent.textContent = pct.toFixed(1);
     el.cabinetBar.style.width = `${clamp(pct, 0, 100)}%`;
     el.cabinetBar.parentElement.setAttribute('aria-valuenow', String(Math.round(pct)));
+
+    if (el.cabinetDrainTimeDisplay) {
+      el.cabinetDrainTimeDisplay.textContent =
+        cabinetDrainTimeSec == null ? '—' : formatEta(cabinetDrainTimeSec);
+    }
 
     el.completedCount.textContent = String(completedCount);
     el.totalDelivered.textContent = totalDeliveredKwh.toFixed(2);
@@ -627,6 +638,10 @@
       render();
       return;
     }
+    // 开始计时：从按下「开始闪充」起，到储电柜首次耗尽（0 kWh）
+    sessionSimElapsedSec = 0;
+    cabinetDrainTimeSec = null;
+    if (el.cabinetDrainTimeDisplay) el.cabinetDrainTimeDisplay.textContent = '—';
     const cfg = readConfig();
     /* 柜空且开启自动补能：先只跑补能循环，待有余量后再点开始闪充 */
     if (cabinetRemainingKwh <= EPS && cfg.gridChargeKw > EPS && !cfg.drainToEmpty) {
@@ -707,6 +722,9 @@
     const cfg = readConfig();
     stopLoop();
     rafId = null;
+    sessionSimElapsedSec = 0;
+    cabinetDrainTimeSec = null;
+    if (el.cabinetDrainTimeDisplay) el.cabinetDrainTimeDisplay.textContent = '—';
     let restore = 0;
     for (let i = 0; i < 2; i++) {
       const s = stalls[i];
@@ -742,6 +760,9 @@
     if (anyActive() || anyCooldownPending()) return;
     completedCount = 0;
     totalDeliveredKwh = 0;
+    sessionSimElapsedSec = 0;
+    cabinetDrainTimeSec = null;
+    if (el.cabinetDrainTimeDisplay) el.cabinetDrainTimeDisplay.textContent = '—';
     render();
   }
 
@@ -751,6 +772,9 @@
     cabinetRemainingKwh = c.rated;
     completedCount = 0;
     totalDeliveredKwh = 0;
+    sessionSimElapsedSec = 0;
+    cabinetDrainTimeSec = null;
+    if (el.cabinetDrainTimeDisplay) el.cabinetDrainTimeDisplay.textContent = '—';
     stalls[0] = createStallState();
     stalls[1] = createStallState();
     paused = false;

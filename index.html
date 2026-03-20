@@ -10,7 +10,7 @@
   <div class="app">
     <header class="hero">
       <h1>比亚迪闪充 · 第二代刀片电池</h1>
-      <p class="tagline">兆瓦级双枪并行补能；两车同时接受大直流，车位一空自动接下一台，直至站端储电柜可放电量耗尽（演示模型）</p>
+      <p class="tagline" title="完整说明见各面板脚注">双枪并行 · 站端自动补能入柜 · 车位连台（演示模型）</p>
     </header>
 
     <main class="grid">
@@ -49,6 +49,17 @@
               <option value="0.92">92% · 常见 PCS+配电</option>
               <option value="0.9">90% · 保守估算</option>
               <option value="0.88">88% · 偏保守</option>
+            </select>
+          </label>
+          <label>自动补能功率（电网持续向柜，演示可调档位）
+            <select id="gridChargeKw" aria-label="站端储电柜自动补能功率档位">
+              <option value="0">关闭 · 无自动补能（仅放电演示）</option>
+              <option value="100">100 kW</option>
+              <option value="200" selected>200 kW · 常见演示</option>
+              <option value="300">300 kW</option>
+              <option value="400">400 kW</option>
+              <option value="600">600 kW</option>
+              <option value="800">800 kW</option>
             </select>
           </label>
           <label class="full">比亚迪闪充桩 · 整站双枪直流上限（两车合计）
@@ -115,13 +126,16 @@
             </select>
           </label>
         </div>
-        <p class="panel-desc ops-hint">换车间隔与 B 滞后均按<strong>模拟时间</strong>计，随倍速加快流逝；含拔枪、驶离、进站、插枪、握手等<strong>合并近似</strong>，非分项实测。自动接下一台会等待间隔；点「启动空闲车位」则跳过该车位等待。</p>
+        <p class="panel-desc ops-hint" title="拔枪、离站、进站、插枪等合并为模拟间隔">间隔 / B 滞后为<strong>模拟秒</strong>，随倍速流逝；自动接车会等间隔，「启动空闲车位」跳过等待。</p>
         <button type="button" class="btn danger ghost" id="btnClearStats">清空统计</button>
       </section>
 
       <section class="panel vehicle-panel" aria-label="车型与电池">
         <h2>第二代刀片电池车型</h2>
-        <p class="panel-desc">本页以<strong>比亚迪闪充</strong>为场景：比亚迪车型按<strong>兆瓦闪充演示口径</strong>设较高的车端峰值直流（便于双枪合计逼近所选 MW 桩上限）；宣传中「约 5 分钟补一大段、约 9 分钟更满」等属于品牌理想工况表述，本页用简化曲线近似，<strong>不等于实测或官方承诺</strong>。下方其他品牌仍为常见快充标称作对照。储电柜余量不足时，界面上的「实际功率」会被柜体可放电能力压低——那是站端约束，不是桩标称消失。</p>
+        <details class="panel-desc-wrap">
+          <summary class="panel-desc-summary">车型与曲线说明（免责）</summary>
+          <p class="panel-desc">本页以<strong>比亚迪闪充</strong>为场景：比亚迪车型按<strong>兆瓦闪充演示口径</strong>设较高的车端峰值直流；宣传中 「约 5 分钟补一大段」等为品牌理想工况，本页简化曲线<strong>≠ 实测或官方承诺</strong>。其他品牌为对照。柜体不足时功率会随站端约束降低。</p>
+        </details>
         <div class="field-grid">
           <label class="full">选择车型
             <select id="vehicleModel" aria-label="选择车型">
@@ -157,7 +171,7 @@
       <section class="panel charge-panel" aria-label="比亚迪闪充双枪">
         <h2>比亚迪闪充 · 双枪</h2>
         <p class="vehicle-note" id="vehicleNoteDisplay">—</p>
-        <p class="total-power-line">闪充双枪合计功率（本帧实际）：<strong id="totalPowerDisplay">0 kW</strong> <span class="mw-sub" id="totalPowerMw"></span>（先按车端峰值 × SOC 曲线，再压到所选 MW 桩上限，最后随储电柜余量可能再降）</p>
+        <p class="total-power-line">双枪合计：<strong id="totalPowerDisplay">0 kW</strong> <span class="mw-sub" id="totalPowerMw"></span><span class="total-power-hint" title="曲线 → 桩上限 → 柜体约束">（车端 → MW 档 → 柜）</span></p>
         <div class="stall-grid">
           <article class="stall-card" aria-label="车位 A">
             <h3 class="stall-title">车位 A</h3>
@@ -227,7 +241,7 @@
     </main>
 
     <footer class="footer">
-      <p>仅供学习演示，非比亚迪官方页面；「比亚迪闪充」「第二代刀片电池」等用语仅作技术场景说明。车型与桩端参数为公开信息归纳，充电曲线与能量结算为简化模型，不代表实车、实桩或官方标称性能。</p>
+      <p>学习演示 · 非官方 · 参数为公开归纳 · 曲线与能量为简化模型</p>
     </footer>
   </div>
   <script src="app.js"></script>

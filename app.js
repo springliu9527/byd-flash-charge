@@ -1,6 +1,6 @@
 /**
  * 比亚迪闪充演示：双枪并行 + 站端储电柜；第二代刀片电池车型标称参数用于车端 kW/kWh 输入。
- * 能量账：两车本帧车端能量 dE0+dE1，柜体扣减 (dE0+dE1)/η。
+ * 能量账：本帧自动补能先入柜（gridChargeKw·dt/3600 kWh），再以补后存量 sMid 算可放预算；两车车端 dE0+dE1 从柜体扣减 (dE0+dE1)/η。
  * 功率：先按车端能力与曲线得 P_raw，双枪合计不超过「兆瓦桩端上限」按比例压缩，再受储电柜可放电预算约束。
  */
 (function () {
@@ -32,6 +32,7 @@
     cabinetStatus: document.getElementById('cabinetStatus'),
     cabinetRated: document.getElementById('cabinetRated'),
     cabinetEta: document.getElementById('cabinetEta'),
+    gridChargeKw: document.getElementById('gridChargeKw'),
     stationMaxKw: document.getElementById('stationMaxKw'),
     completedCount: document.getElementById('completedCount'),
     totalDelivered: document.getElementById('totalDelivered'),
@@ -123,9 +124,17 @@
       speed: Math.max(1, parseInt(el.speed.value, 10) || 50),
       autoChain: el.autoChain.checked,
       stationMaxKw: Math.max(100, el.stationMaxKw ? readNumber(el.stationMaxKw, 1000) : 1000),
+      /** 自动补能功率档位（kW，演示）；0 表示关闭自动补能、仅放电模型 */
+      gridChargeKw: Math.max(0, el.gridChargeKw ? readNumber(el.gridChargeKw, 0) : 0),
       turnaroundSimSec: Math.max(0, parseInt(el.turnaroundSimSec?.value ?? '0', 10) || 0),
       stallBLagSimSec: Math.max(0, parseInt(el.stallBLagSimSec?.value ?? '0', 10) || 0),
     };
+  }
+
+  /** 无车充/无换车间隔等待时仍推进仿真，直至补满（演示） */
+  function shouldRunGridRefill() {
+    const c = readConfig();
+    return c.gridChargeKw > EPS && cabinetRemainingKwh < c.rated - EPS;
   }
 
   function clamp(x, a, b) {
@@ -199,6 +208,7 @@
     [
       el.cabinetRated,
       el.cabinetEta,
+      el.gridChargeKw,
       el.stationMaxKw,
       el.vehicleModel,
       el.socStartInput,
@@ -289,6 +299,7 @@
         el.btnAbortSession.disabled = true;
       }
     }
+
     render();
   }
 
@@ -310,8 +321,16 @@
     const dt = clamp(dtRaw, 0, dtMaxSimSec);
 
     processStallCooldowns(dt);
+    const gridKIn = (c.gridChargeKw * dt) / 3600;
 
+    /* 无充电无换车间隔：仅自动补能，补满或功率为 0 则停表 */
     if (!anyActive() && !anyCooldownPending()) {
+      if (gridKIn > EPS && cabinetRemainingKwh < c.rated - EPS) {
+        cabinetRemainingKwh = clamp(cabinetRemainingKwh + gridKIn, 0, c.rated);
+        rafId = requestAnimationFrame(tick);
+        render();
+        return;
+      }
       stopLoop();
       rafId = null;
       setInputsDisabled(false);
@@ -320,20 +339,24 @@
       return;
     }
 
-    if (cabinetRemainingKwh <= EPS) {
-      cabinetRemainingKwh = 0;
-      for (let i = 0; i < 2; i++) {
-        if (stalls[i].active) completeStall(i, 'cabinet');
+    /* 仅换车间隔等待：时间仍走，自动补能照常 */
+    if (!anyActive() && anyCooldownPending()) {
+      if (gridKIn > EPS && cabinetRemainingKwh < c.rated - EPS) {
+        cabinetRemainingKwh = clamp(cabinetRemainingKwh + gridKIn, 0, c.rated);
       }
-      if (anyActive() || anyCooldownPending()) {
-        rafId = requestAnimationFrame(tick);
-      }
+      rafId = requestAnimationFrame(tick);
       render();
       return;
     }
 
-    if (!anyActive()) {
-      if (anyCooldownPending()) {
+    /* 至少有一枪在充：本帧先计补能再算可放预算 */
+    const sMid = clamp(cabinetRemainingKwh + gridKIn, 0, c.rated);
+    if (sMid <= EPS) {
+      cabinetRemainingKwh = 0;
+      for (let i = 0; i < 2; i++) {
+        if (stalls[i].active) completeStall(i, 'cabinet');
+      }
+      if (anyActive() || anyCooldownPending() || shouldRunGridRefill()) {
         rafId = requestAnimationFrame(tick);
       }
       render();
@@ -363,7 +386,7 @@
     }
 
     const sumI = ideals[0] + ideals[1];
-    const budget = cabinetRemainingKwh * c.eta;
+    const budget = sMid * c.eta;
     const scale = sumI <= 1e-15 ? 0 : Math.min(1, budget / sumI);
 
     const dE = [0, 0];
@@ -379,21 +402,21 @@
 
     const totalDE = dE[0] + dE[1];
     if (totalDE <= 1e-15) {
-      if (budget <= EPS || cabinetRemainingKwh <= EPS) {
+      cabinetRemainingKwh = clamp(sMid, 0, c.rated);
+      if (cabinetRemainingKwh <= EPS) {
         cabinetRemainingKwh = 0;
         for (let i = 0; i < 2; i++) {
           if (stalls[i].active) completeStall(i, 'cabinet');
         }
       }
-      if (anyActive() || anyCooldownPending()) {
+      if (anyActive() || anyCooldownPending() || shouldRunGridRefill()) {
         rafId = requestAnimationFrame(tick);
       }
       render();
       return;
     }
 
-    cabinetRemainingKwh -= totalDE / c.eta;
-    if (cabinetRemainingKwh < 0) cabinetRemainingKwh = 0;
+    cabinetRemainingKwh = clamp(sMid - totalDE / c.eta, 0, c.rated);
     totalDeliveredKwh += totalDE;
 
     for (let i = 0; i < 2; i++) {
@@ -428,7 +451,7 @@
       }
     }
 
-    if (anyActive() || anyCooldownPending()) {
+    if (anyActive() || anyCooldownPending() || shouldRunGridRefill()) {
       rafId = requestAnimationFrame(tick);
     }
     render();
@@ -537,7 +560,10 @@
     const bothBusy = stalls[0].active && stalls[1].active;
     const formOk = cfg.socStart < cfg.socTarget;
 
-    el.btnStart.disabled = anyActive() || anyCooldownPending() || cabinetEmpty || !formOk;
+    const canGridOnly =
+      cabinetEmpty && cfg.gridChargeKw > EPS && !anyActive() && !anyCooldownPending() && formOk;
+    el.btnStart.disabled =
+      anyActive() || anyCooldownPending() || (!canGridOnly && cabinetEmpty) || !formOk;
     el.btnPause.disabled = !anyActive();
     el.btnPause.textContent = paused ? '继续' : '暂停';
     el.btnNext.disabled = cabinetEmpty || !formOk || bothBusy;
@@ -548,7 +574,16 @@
     el.btnClearStats.disabled = anyActive() || anyCooldownPending();
     el.btnResetAll.disabled = anyActive() || anyCooldownPending();
 
-    if (cabinetEmpty && !anyActive() && !anyCooldownPending()) {
+    if (
+      cfg.gridChargeKw > EPS &&
+      cabinetRemainingKwh < cfg.rated - EPS &&
+      !anyActive() &&
+      !anyCooldownPending() &&
+      !paused &&
+      rafId != null
+    ) {
+      el.cabinetStatus.textContent = '自动补能中（演示）';
+    } else if (cabinetEmpty && !anyActive() && !anyCooldownPending()) {
       el.cabinetStatus.textContent = '站端储电柜已耗尽（演示）';
     } else if (anyActive()) {
       el.cabinetStatus.textContent = paused ? '闪充已暂停（双枪）' : '比亚迪闪充进行中（双枪）';
@@ -575,7 +610,17 @@
       return;
     }
     const cfg = readConfig();
-    if (cabinetRemainingKwh <= EPS) {
+    /* 柜空且开启自动补能：先只跑补能循环，待有余量后再点开始闪充 */
+    if (cabinetRemainingKwh <= EPS && cfg.gridChargeKw > EPS) {
+      paused = false;
+      lastNow = performance.now();
+      stopLoop();
+      rafId = requestAnimationFrame(tick);
+      render();
+      return;
+    }
+    /* 柜空且关闭自动补能：恢复满柜便于快速演示 */
+    if (cabinetRemainingKwh <= EPS && cfg.gridChargeKw <= EPS) {
       cabinetRemainingKwh = cfg.rated;
     }
     const a = tryStartStall(0);
@@ -710,7 +755,7 @@
     node.addEventListener('change', () => render());
   }
 
-  [el.cabinetRated, el.cabinetEta, el.stationMaxKw].forEach(bindFormRefresh);
+  [el.cabinetRated, el.cabinetEta, el.gridChargeKw, el.stationMaxKw].forEach(bindFormRefresh);
   [
     el.vehicleModel,
     el.socStartInput,

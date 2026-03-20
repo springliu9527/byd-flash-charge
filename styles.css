@@ -521,6 +521,7 @@ select:disabled {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  z-index: 2;
 }
 
 .soc-pct {
@@ -532,6 +533,16 @@ select:disabled {
 .soc-sub {
   font-size: 0.85rem;
   color: var(--muted);
+}
+
+/* 小圆环（车位卡片）尺寸更小，百分比文字也要缩放，否则会被裁切/挡住 */
+.stall-ring.soc-ring-wrap .soc-pct {
+  font-size: 1.35rem;
+}
+
+.stall-ring.soc-ring-wrap .soc-sub {
+  font-size: 0.7rem;
+  line-height: 1.1;
 }
 
 .power-block {

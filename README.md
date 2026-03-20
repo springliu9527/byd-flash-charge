@@ -4,4 +4,6 @@
 
 本地打开 `index.html` 即可（支持 `file://`）。
 
+网页地址（GitHub Pages）：<https://springliu9527.github.io/byd-flash-charge/>
+
 远程仓库：<https://github.com/springliu9527/byd-flash-charge>
